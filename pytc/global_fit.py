@@ -475,9 +475,10 @@ class GlobalFit:
 
         self._prep_fit()
 
-    def plot(self,correct_molar_ratio=False,subtract_dilution=False,
-             normalize_heat_to_shot=False,color_list=None,
-             data_symbol="o",linewidth=1.5,num_samples=100):
+    def plot(self, correct_molar_ratio=False, subtract_dilution=False, 
+             normalize_heat_to_shot=False, color_list=None, data_symbol="o", 
+             linewidth=1.5, num_samples=100, dissociation=False, 
+             label_graph=False, label_list=[], symbol_size=8):
         """
         Plot the experimental data and fit results.
 
@@ -503,7 +504,7 @@ class GlobalFit:
         manipulated by the user of the API.
         """
 
-        # Make graph of appropraite size
+        # Make graph of appropriate size
         fig = plt.figure(figsize=(5.5,6)) 
 
         # Create two panel graph
@@ -578,8 +579,19 @@ class GlobalFit:
 
                 # Extract fit info for this experiment
                 e = self._expt_dict[expt_name]
-                mr = e.mole_ratio
+                if dissociation:
+                    Ptot = []
+                    tot_inj_vol = 0.0
+                    cell_volume = e.cell_volume*1e-6
+                    for shot_num in range(len(e._shots)):
+                        shot_vol = e._shots[shot_num] * 1e-6
+                        tot_inj_vol = tot_inj_vol + shot_vol
+                        Ptot.append(((e.titrant_syringe_conc*tot_inj_vol)/cell_volume)*(1 - (tot_inj_vol/(2*cell_volume)))*1e3)
+                    mr = Ptot[e._shot_start:]
+                else:
+                    mr = e.mole_ratio
                 heats = e.heats
+                heats_stdev = e.heats_stdev
                 calc = self._expt_dict[expt_name].dQ
 
                 if len(calc) > 0:
@@ -597,17 +609,32 @@ class GlobalFit:
                         calc = calc - e.dilution_heats
 
                     if normalize_heat_to_shot:
-                        heats = heats/e.mol_injected
-                        calc = calc/e.mol_injected
+                        if u == "kcal/mol":
+                            heats = heats*1e-9/e.mol_injected
+                            calc = calc*1e-9/e.mol_injected
+                            heats_stdev = heats_stdev*1e-9/e.mol_injected
+                        else:
+                            heats = heats*1e-6/e.mol_injected
+                            calc = calc*1e-6/e.mol_injected
+                            heats_stdev = heats_stdev*1e-6/e.mol_injected
 
                 # Draw fit lines and residuals
                 if len(e.dQ) > 0:
                     ax[0].plot(mr,calc,color=color_list[j],linewidth=linewidth,alpha=alpha)
-                    ax[1].plot(mr,(calc-heats),data_symbol,color=color_list[j],alpha=alpha,markersize=8)     
+                    ax[1].plot(mr,(calc-heats),data_symbol,color=color_list[j],alpha=alpha,markersize=symbol_size)     
 
                 # If this is the last sample, plot the experimental data
                 if i == len(these_samples) - 1:
-                    ax[0].errorbar(mr,heats,e.heats_stdev,fmt=data_symbol,color=color_list[j],markersize=8)
+                    #if len(label_list) > 0:
+                    if label_graph:
+                        if len(label_list) == len(self._expt_list_stable_order):
+                            ax[0].errorbar(mr,heats,abs(heats_stdev),fmt=data_symbol,color=color_list[j],markersize=symbol_size, label=label_list[j])
+                            ax[0].legend(loc = "upper right")
+                        else:
+                            ax[0].errorbar(mr,heats,abs(heats_stdev),fmt=data_symbol,color=color_list[j],markersize=symbol_size, label=expt_name)
+                            ax[0].legend(loc = "upper right")
+                    else:
+                        ax[0].errorbar(mr,heats,abs(heats_stdev),fmt=data_symbol,color=color_list[j],markersize=symbol_size)
         
         fig.set_tight_layout(True)
 

@@ -49,6 +49,7 @@ class NitpicExperiment(BaseITCExperiment):
         shots = []
         heats = []
         ndh = []
+
         for l in lines[1:]:
             if "--" in l:
                 break
@@ -69,6 +70,7 @@ class NitpicExperiment(BaseITCExperiment):
         heats_stdev = []
         for i, l in enumerate(lines):
             sd = ndh[i] - float(l.split()[0])
-            heats_stdev.append(sd*shots[i]/1000.0)
+            #heats_stdev.append(sd*shots[i]/1000.0)
+            heats_stdev.append(np.absolute(sd*shots[i]*self.titrant_syringe_conc))
 
         self._heats_stdev = np.array(heats_stdev)
